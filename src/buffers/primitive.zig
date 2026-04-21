@@ -31,7 +31,7 @@ fn PrimitiveArray(comptime T: type) type {
             };
         }
 
-        pub fn deinit(self: Self, gpa: std.mem.Allocator) void {
+        pub fn deinit(self: *Self, gpa: std.mem.Allocator) void {
             self.items.deinit(gpa);
         }
 
@@ -59,7 +59,7 @@ fn PrimitiveArray(comptime T: type) type {
 
 test "non null array" {
     const array = [_]u64{ 5, 10, 15 };
-    const u64_array = try UInt64Array.initFromValues(&array, test_allocator);
+    var u64_array = try UInt64Array.initFromValues(&array, test_allocator);
     defer u64_array.deinit(test_allocator);
 
     for (0..u64_array.len()) |idx| {
