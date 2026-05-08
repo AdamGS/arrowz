@@ -59,10 +59,6 @@ pub fn VariableBinary(comptime T: type) type {
 }
 
 test "basic get value" {
-    // const allocator = testing.allocator;
-
-    // const alignment = VariableBinary(i32).alignment;
-
     const data align(64) = [_]u8{ 65, 65, 65, 66, 66, 66 };
     const offsets align(64) = [_]i32{ 0, 3, 3, 6 };
 
@@ -73,7 +69,7 @@ test "basic get value" {
         .nulls = null,
     };
 
-    try testing.expect(std.mem.eql(u8, "AAA", arr.value(0).*));
+    try testing.expect(std.mem.eql(u8, arr.value(0).*, "AAA"));
     try testing.expectEqual(arr.value(1).len, 0);
-    try testing.expect(std.mem.eql(u8, "BBB", arr.value(2).*));
+    try testing.expect(std.mem.eql(u8, arr.value(2).*, "BBB"));
 }
