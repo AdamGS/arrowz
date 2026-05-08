@@ -11,15 +11,17 @@ const BitBuffer = @import("bit.zig").BitBuffer;
 pub fn Primitive(comptime T: type) type {
     return struct {
         const Self = @This();
+        const alignment = std.mem.Alignment.@"64";
 
         items: Aligned(T, alignment),
         nulls: ?BitBuffer,
 
         /// Arrow buffer alignment is either 8 or 64 bytes, for now
         /// this is just hard-coded.
-        const alignment = std.mem.Alignment.@"64";
-
-        pub const empty: Self = .{ .items = Aligned(T, alignment).empty, .nulls = null };
+        pub const empty: Self = .{
+            .items = Aligned(T, alignment).empty,
+            .nulls = null,
+        };
 
         pub fn data_type(_: Self) DataType {
             return switch (T) {
