@@ -23,10 +23,14 @@ fn PrimitiveArray(comptime T: type) type {
     return struct {
         const Self = @This();
 
-        items: Aligned(T, null),
+        items: Aligned(T, alignment),
         nulls: ?BitBuffer,
 
-        pub const empty: Self = .{ .items = Aligned(T, null).empty, .nulls = null };
+        /// Arrow buffer alignment is either 8 or 64 bytes, for now
+        /// this is just hard-coded.
+        const alignment = std.mem.Alignment.@"64";
+
+        pub const empty: Self = .{ .items = Aligned(T, alignment).empty, .nulls = null };
 
         pub fn data_type(_: Self) DataType {
             return switch (T) {
@@ -48,7 +52,7 @@ fn PrimitiveArray(comptime T: type) type {
         }
 
         pub fn initFromValues(values: []const T, gpa: std.mem.Allocator) !Self {
-            var items = try Aligned(T, null).initCapacity(gpa, values.len);
+            var items = try Aligned(T, alignment).initCapacity(gpa, values.len);
             try items.appendSlice(gpa, values);
 
             return Self{
@@ -58,7 +62,7 @@ fn PrimitiveArray(comptime T: type) type {
         }
 
         pub fn initWithNulls(values: []const T, nulls: []const bool, gpa: std.mem.Allocator) !Self {
-            var items = try Aligned(T, null).initCapacity(gpa, values.len);
+            var items = try Aligned(T, alignment).initCapacity(gpa, values.len);
             try items.appendSlice(gpa, values);
 
             const validity = try BitBuffer.init(nulls, gpa);
