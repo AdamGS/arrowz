@@ -10,3 +10,10 @@ I have no real sense as to how idiomatic the API is, and I suspect it'll keep ch
 ## Development
 
 The two tools I currently use are zig 0.16 and [`just`](https://github.com/casey/just).
+
+## TODO
+
+1. Replace Aligned usage with internal aligned buffer type
+1. Cheap buffer slicing and indexing.
+1. Create builders for everything? Mostly useful if we do data sharing so splitting mutability might make sense? IDK if that's even possible in Zig.
+
