@@ -10,7 +10,6 @@ const BitBuffer = @import("bit.zig").BitBuffer;
 pub fn VariableBinary(comptime T: type) type {
     return struct {
         const Self = @This();
-
         const alignment = std.mem.Alignment.@"64";
 
         offsets: std.array_list.Aligned(T, alignment),
@@ -50,10 +49,10 @@ pub fn VariableBinary(comptime T: type) type {
             return self.length;
         }
 
-        pub fn value(self: *const Self, idx: usize) *const []u8 {
+        pub fn value(self: *const Self, idx: usize) []const u8 {
             const start: usize = @intCast(self.offsets.items[idx]);
             const end: usize = @intCast(self.offsets.items[idx + 1]);
-            return &self.data.items[start..end];
+            return self.data.items[start..end];
         }
     };
 }
@@ -69,7 +68,7 @@ test "basic get value" {
         .nulls = null,
     };
 
-    try testing.expect(std.mem.eql(u8, arr.value(0).*, "AAA"));
+    try testing.expect(std.mem.eql(u8, arr.value(0), "AAA"));
     try testing.expectEqual(arr.value(1).len, 0);
-    try testing.expect(std.mem.eql(u8, arr.value(2).*, "BBB"));
+    try testing.expect(std.mem.eql(u8, arr.value(2), "BBB"));
 }
