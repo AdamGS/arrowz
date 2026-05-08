@@ -2,7 +2,7 @@
 //!
 //! Spec: https://arrow.apache.org/docs/format/Columnar.html#data-types
 
-const DataType = enum {
+pub const DataType = enum {
     null_,
     boolean,
     int8,

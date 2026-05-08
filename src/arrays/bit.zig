@@ -2,20 +2,22 @@ const std = @import("std");
 const test_allocator = std.testing.allocator;
 const expect = std.testing.expect;
 
-const BitBuffer = struct {
+pub const BitBuffer = struct {
+    const Self = @This();
+
     bits: std.ArrayList(u64),
     len: usize,
 
     const ShiftInt = std.math.Log2Int(u64);
 
-    pub fn init(values: []const bool, gpa: std.mem.Allocator) !BitBuffer {
+    pub fn init(values: []const bool, gpa: std.mem.Allocator) !Self {
         const capacity = (values.len / 64) + 1;
         const len = values.len;
         var bits = try std.ArrayList(u64).initCapacity(gpa, capacity);
 
         try bits.appendNTimes(gpa, 0, capacity);
 
-        var b = BitBuffer{ .bits = bits, .len = len };
+        var b = Self{ .bits = bits, .len = len };
 
         for (values, 0..) |value, idx| {
             b.setWithValue(idx, value);
@@ -24,19 +26,23 @@ const BitBuffer = struct {
         return b;
     }
 
-    pub fn deinit(self: *BitBuffer, gpa: std.mem.Allocator) void {
+    pub fn deinit(self: *Self, gpa: std.mem.Allocator) void {
         self.bits.deinit(gpa);
         self.* = undefined;
     }
 
-    pub fn isValid(self: *BitBuffer, idx: usize) bool {
+    pub fn isValid(self: *const Self, idx: usize) bool {
         const byte_idx = idx / 64;
         const bit_idx = @as(ShiftInt, @truncate(idx % 64));
         const v = self.bits.items[byte_idx];
         return ((v >> bit_idx) & 1) != 0;
     }
 
-    pub fn setWithValue(self: *BitBuffer, idx: usize, value: bool) void {
+    pub fn isNull(self: *const Self, idx: usize) bool {
+        return !self.isValid(idx);
+    }
+
+    pub fn setWithValue(self: *Self, idx: usize, value: bool) void {
         const byte_idx = idx / 64;
         const bit_idx: u6 = @truncate(idx % 64);
         const mask: u64 = @as(u64, 1) << bit_idx;
@@ -87,4 +93,15 @@ test "set_bit" {
     try expect(!b.isValid(0));
     try expect(b.isValid(1));
     try expect(!b.isValid(2));
+}
+
+test "case0" {
+    const array = [_]bool{ true, false, true };
+
+    var b = try BitBuffer.init(&array, test_allocator);
+    defer b.deinit(test_allocator);
+    try expect(b.len == 3);
+    try expect(b.isValid(0));
+    try expect(b.isNull(1));
+    try expect(b.isValid(2));
 }

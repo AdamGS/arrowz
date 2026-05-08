@@ -2,10 +2,9 @@
 const std = @import("std");
 const Io = std.Io;
 
-pub const array = @import("./array.zig");
-pub const bit = @import("buffers/bit.zig");
-pub const primitive = @import("buffers/primitive.zig");
-pub const data_type = @import("data_type.zig");
+pub const bit = @import("arrays/bit.zig");
+pub const primitive = @import("arrays/primitive.zig");
+pub const types = @import("types.zig");
 
 test {
     std.testing.refAllDecls(@This());
