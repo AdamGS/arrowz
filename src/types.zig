@@ -23,8 +23,8 @@ pub const DataType = enum {
 
 // This is a place holder for a type system that is much closer
 // to the literal spec: https://arrow.apache.org/docs/format/Columnar.html#data-types
-// I don't know if its a good idea, but the existing one does miss decimals because right now
-// it can't handle parameters like precision and scale
+// I don't know if its a good idea, but the existing one does miss types like list or decimal
+// that require more complex parameters or even nested types.
 //
 // const IntType = struct {
 //     width: u6,
