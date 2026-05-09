@@ -8,6 +8,11 @@ const testing = std.testing;
 const BitBuffer = @import("bit.zig").BitBuffer;
 
 pub fn VariableBinary(comptime T: type) type {
+    comptime switch (T) {
+        i32, i64 => {},
+        else => @compileError("unsupported Varbin array offset type: " ++ @typeName(T)),
+    };
+
     return struct {
         const Self = @This();
         const alignment = std.mem.Alignment.@"64";
@@ -18,6 +23,7 @@ pub fn VariableBinary(comptime T: type) type {
             alignment,
         ),
         length: usize,
+
         nulls: ?BitBuffer = null,
 
         pub const empty: Self = .{
@@ -25,6 +31,14 @@ pub fn VariableBinary(comptime T: type) type {
             .data = .empty,
             .length = 0,
         };
+
+        pub fn initCapacity(gpa: std.mem.Allocator, num: usize) !Self {
+            return Self{
+                .data = .empty,
+                .offsets = try .initCapacity(gpa, num + 1),
+                .length = 0,
+            };
+        }
 
         pub fn deinit(self: *Self, gpa: std.mem.Allocator) void {
             self.data.deinit(gpa);
@@ -61,17 +75,35 @@ pub fn VariableBinary(comptime T: type) type {
     };
 }
 
-test "basic get value" {
-    const data align(64) = [_]u8{ 65, 65, 65, 66, 66, 66 };
-    const offsets align(64) = [_]i32{ 0, 3, 3, 6 };
+test "init test" {
+    const allocator = testing.allocator;
 
-    const arr = VariableBinary(i32){
+    var arr = try VariableBinary(i32).initCapacity(allocator, 3);
+    defer arr.deinit(allocator);
+
+    try testing.expect(arr.length == 0);
+}
+
+test "basic get value" {
+    const allocator = testing.allocator;
+    const alignment = std.mem.Alignment.@"64";
+
+    const data = try allocator.alignedAlloc(u8, alignment, 6);
+    errdefer allocator.free(data);
+    @memcpy(data, "AAABBB");
+
+    const offsets = try allocator.alignedAlloc(i32, alignment, 4);
+    errdefer allocator.free(offsets);
+    @memcpy(offsets, &[_]i32{ 0, 3, 3, 6 });
+
+    var arr = VariableBinary(i32){
         .length = 3,
-        .data = .fromOwnedSlice(@constCast(&data)),
-        .offsets = .fromOwnedSlice(@constCast(&offsets)),
+        .data = .fromOwnedSlice(data),
+        .offsets = .fromOwnedSlice(offsets),
     };
+    defer arr.deinit(allocator);
 
     try testing.expect(std.mem.eql(u8, arr.value(0), "AAA"));
-    try testing.expectEqual(arr.value(1).len, 0);
+    try testing.expectEqual(@as(usize, 0), arr.value(1).len);
     try testing.expect(std.mem.eql(u8, arr.value(2), "BBB"));
 }
