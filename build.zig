@@ -34,7 +34,11 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    const lib = b.addLibrary(.{ .name = "arrowz", .root_module = arrowz_mod, .linkage = .static });
+    const lib = b.addLibrary(.{
+        .name = "arrowz",
+        .root_module = arrowz_mod,
+        .linkage = .static,
+    });
 
     b.installArtifact(lib);
 
@@ -54,7 +58,11 @@ pub fn build(b: *std.Build) void {
     const test_step = b.step("test", "Run tests");
     test_step.dependOn(&run_mod_tests.step);
 
-    const install_docs = b.addInstallDirectory(.{ .source_dir = lib.getEmittedDocs(), .install_dir = .prefix, .install_subdir = "docs" });
+    const install_docs = b.addInstallDirectory(.{
+        .source_dir = lib.getEmittedDocs(),
+        .install_dir = .prefix,
+        .install_subdir = "docs",
+    });
 
     const docs_step = b.step("docs", "Install docs into zig-out/docs");
 
