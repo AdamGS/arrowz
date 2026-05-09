@@ -14,13 +14,12 @@ pub fn Primitive(comptime T: type) type {
         const alignment = std.mem.Alignment.@"64";
 
         items: Aligned(T, alignment),
-        nulls: ?BitBuffer,
+        nulls: ?BitBuffer = null,
 
         /// Arrow buffer alignment is either 8 or 64 bytes, for now
         /// this is just hard-coded.
         pub const empty: Self = .{
             .items = Aligned(T, alignment).empty,
-            .nulls = null,
         };
 
         pub fn data_type(_: Self) DataType {

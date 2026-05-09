@@ -18,9 +18,13 @@ pub fn VariableBinary(comptime T: type) type {
             alignment,
         ),
         length: usize,
-        nulls: ?BitBuffer,
+        nulls: ?BitBuffer = null,
 
-        pub const empty: Self = .{ .offsets = .empty, .data = .empty, .length = 0, .nulls = null };
+        pub const empty: Self = .{
+            .offsets = .empty,
+            .data = .empty,
+            .length = 0,
+        };
 
         pub fn deinit(self: *Self, gpa: std.mem.Allocator) void {
             self.data.deinit(gpa);
@@ -50,8 +54,8 @@ pub fn VariableBinary(comptime T: type) type {
         }
 
         pub fn value(self: *const Self, idx: usize) []const u8 {
-            const start: usize = @intCast(self.offsets.items[idx]);
-            const end: usize = @intCast(self.offsets.items[idx + 1]);
+            const start = @abs(self.offsets.items[idx]);
+            const end = @abs(self.offsets.items[idx + 1]);
             return self.data.items[start..end];
         }
     };
@@ -65,7 +69,6 @@ test "basic get value" {
         .length = 3,
         .data = .fromOwnedSlice(@constCast(&data)),
         .offsets = .fromOwnedSlice(@constCast(&offsets)),
-        .nulls = null,
     };
 
     try testing.expect(std.mem.eql(u8, arr.value(0), "AAA"));

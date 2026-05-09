@@ -11,10 +11,7 @@ const Inline = extern struct {
     content: [12]u8,
 
     pub fn data(self: *const Self) []const u8 {
-        const length: usize = @intCast(self.len);
-        std.debug.assert(length <= self.content.len);
-
-        return self.content[0..length];
+        return self.content[0..self.len];
     }
 };
 
@@ -37,15 +34,19 @@ const View = extern union {
         return @intCast(self.inline_.len);
     }
 
+    pub fn is_inline(self: Self) bool {
+        return self.length() <= 12;
+    }
+
     pub fn as_remote(self: Self) ?Remote {
-        return if (self.length() > 12)
+        return if (!self.is_inline())
             self.remote
         else
             null;
     }
 
     pub fn as_inline(self: Self) ?Inline {
-        return if (self.length() <= 12)
+        return if (self.is_inline())
             self.inline_
         else
             null;
@@ -76,16 +77,54 @@ pub fn VarBinView() type {
         const alignment = std.mem.Alignment.@"64";
 
         views: std.array_list.Aligned(View, alignment),
+        data: std.ArrayList(std.array_list.Aligned(u8, alignment)),
+        nulls: ?BitBuffer = null,
+
+        pub fn isValid(self: Self, idx: usize) bool {
+            if (self.nulls) |nulls| {
+                return nulls.isValid(idx);
+            } else {
+                return true;
+            }
+        }
+
+        pub fn isNull(self: Self, idx: usize) bool {
+            return !self.isValid(idx);
+        }
+
+        pub fn len(self: *const Self) usize {
+            return self.views.items.len;
+        }
+
+        pub fn value(self: *const Self, idx: usize) []const u8 {
+            const view = self.views.items[idx];
+            if (view.as_inline()) |inline_| {
+                return inline_.data();
+            } else if (view.as_remote()) |remote| {
+                const length = remote.len;
+                const offset = remote.offset;
+
+                std.debug.assert(self.data.items.len > remote.buf_idx);
+                const buff = self.data.items[remote.buf_idx];
+
+                std.debug.assert(buff.items.len >= offset + length);
+
+                const x = buff.items[offset .. offset + length];
+                return x;
+            } else {
+                unreachable;
+            }
+        }
     };
 }
 
-test "inline_data" {
+test "inlined data" {
     const i = Inline{
         .len = 12,
         .content = "AAAAAAAAAAAA".*,
     };
 
     const data = i.data();
-    try testing.expectEqual(@as(usize, 12), data.len);
+    try testing.expectEqual(12, data.len);
     try testing.expect(mem.eql(u8, data, "AAAAAAAAAAAA"));
 }
