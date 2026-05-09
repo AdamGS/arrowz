@@ -54,6 +54,51 @@ pub const BitBuffer = struct {
     }
 };
 
+pub const BitBufferBuilder = struct {
+    const Self = @This();
+
+    length: usize,
+    values: ?std.ArrayList(bool),
+
+    pub const empty = Self{
+        .length = 0,
+        .values = null,
+    };
+
+    pub fn appendValue(self: *Self, gpa: std.mem.Allocator, value: bool) std.mem.Allocator.Error!void {
+        if (self.values) |*values| {
+            try values.append(gpa, value);
+        } else if (!value) {
+            self.values = try .initCapacity(gpa, self.length + 1);
+
+            for (0..self.length) |_| {
+                self.values.?.appendAssumeCapacity(true);
+            }
+
+            self.values.?.appendAssumeCapacity(false);
+        }
+
+        self.length += 1;
+    }
+
+    pub fn finish(self: *Self, gpa: std.mem.Allocator) !?BitBuffer {
+        if (self.values) |*values| {
+            const buffer = try BitBuffer.init(values.items, gpa);
+            values.deinit(gpa);
+            self.* = undefined;
+            return buffer;
+        } else {
+            return null;
+        }
+    }
+
+    pub fn appendNull(self: *Self, gpa: std.mem.Allocator) std.mem.Allocator.Error!void {
+        if (self.values) |*values| {
+            try values.append(gpa, false);
+        } else {}
+    }
+};
+
 test "init from values" {
     const array = [_]bool{ false, true, false, true, true };
 
@@ -100,6 +145,36 @@ test "case0" {
 
     var b = try BitBuffer.init(&array, test_allocator);
     defer b.deinit(test_allocator);
+    try expect(b.len == 3);
+    try expect(b.isValid(0));
+    try expect(b.isNull(1));
+    try expect(b.isValid(2));
+}
+
+test "true builder" {
+    var builder = BitBufferBuilder.empty;
+    try builder.appendValue(test_allocator, true);
+    try builder.appendValue(test_allocator, true);
+    try builder.appendValue(test_allocator, true);
+
+    try expect(builder.length == 3);
+
+    const r = try builder.finish(test_allocator);
+
+    try std.testing.expectEqual(r, null);
+}
+
+test "mixed builder" {
+    var builder = BitBufferBuilder.empty;
+    try builder.appendValue(test_allocator, true);
+    try builder.appendValue(test_allocator, false);
+    try builder.appendValue(test_allocator, true);
+
+    try expect(builder.length == 3);
+
+    var b = try builder.finish(test_allocator) orelse unreachable;
+    defer b.deinit(test_allocator);
+
     try expect(b.len == 3);
     try expect(b.isValid(0));
     try expect(b.isNull(1));

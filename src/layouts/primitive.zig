@@ -3,7 +3,7 @@ const testing = std.testing;
 const Aligned = std.array_list.Aligned;
 
 const DataType = @import("../types.zig").DataType;
-const BitBuffer = @import("bit.zig").BitBuffer;
+const bit = @import("bit.zig");
 
 /// Fixed-sized layout for primitive data.
 ///
@@ -14,7 +14,7 @@ pub fn Primitive(comptime T: type) type {
         const alignment = std.mem.Alignment.@"64";
 
         items: Aligned(T, alignment),
-        nulls: ?BitBuffer = null,
+        nulls: ?bit.BitBuffer = null,
 
         /// Arrow buffer alignment is either 8 or 64 bytes, for now
         /// this is just hard-coded.
@@ -55,7 +55,7 @@ pub fn Primitive(comptime T: type) type {
             var items = try Aligned(T, alignment).initCapacity(gpa, values.len);
             try items.appendSlice(gpa, values);
 
-            const validity = try BitBuffer.init(nulls, gpa);
+            const validity = try bit.BitBuffer.init(nulls, gpa);
 
             return Self{
                 .items = items,
@@ -94,6 +94,41 @@ pub fn Primitive(comptime T: type) type {
 
         pub fn value(self: *const Self, idx: usize) T {
             return self.items.items[idx];
+        }
+    };
+}
+
+pub fn PrimitiveBuilder(comptime T: type) type {
+    return struct {
+        const Self = @This();
+        const alignment = std.mem.Alignment.@"64";
+
+        items: Aligned(T, alignment),
+        nulls: bit.BitBufferBuilder,
+
+        pub const empty = Self{
+            .items = .empty,
+            .nulls = .empty,
+        };
+
+        pub fn appendValue(self: *Self, gpa: std.mem.Allocator, item: T) !void {
+            try self.items.append(gpa, item);
+            try self.nulls.appendValue(gpa, true);
+        }
+
+        pub fn appendNull(self: *Self, gpa: std.mem.Allocator) !void {
+            try self.items.append(gpa, 0);
+            try self.nulls.appendValue(gpa, false);
+        }
+
+        pub fn finish(self: *Self, gpa: std.mem.Allocator) !Primitive(T) {
+            const arr = Primitive(T){
+                .items = self.items,
+                .nulls = try self.nulls.finish(gpa),
+            };
+
+            self.* = undefined;
+            return arr;
         }
     };
 }
@@ -139,4 +174,36 @@ test "data_type_u8" {
 
 test "data_type_u16" {
     try testing.expect(Primitive(u16).empty.data_type() == DataType.uint16);
+}
+
+test "primitive builder all valid" {
+    var builder = PrimitiveBuilder(u32).empty;
+
+    try builder.appendValue(testing.allocator, 1);
+    try builder.appendValue(testing.allocator, 2);
+    try builder.appendValue(testing.allocator, 3);
+
+    var arr = try builder.finish(testing.allocator);
+    defer arr.deinit(testing.allocator);
+
+    try testing.expect(arr.len() == 3);
+    try testing.expect(arr.nulls == null);
+}
+
+test "primitive builder all mixed validity" {
+    var builder = PrimitiveBuilder(u32).empty;
+
+    try builder.appendValue(testing.allocator, 1);
+    try builder.appendNull(testing.allocator);
+    try builder.appendValue(testing.allocator, 3);
+
+    var arr = try builder.finish(testing.allocator);
+    defer arr.deinit(testing.allocator);
+
+    try testing.expect(arr.len() == 3);
+    try testing.expect(arr.nulls != null);
+
+    try testing.expect(arr.isValid(0));
+    try testing.expect(arr.isNull(1));
+    try testing.expect(arr.isValid(2));
 }
