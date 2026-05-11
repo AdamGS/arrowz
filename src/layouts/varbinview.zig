@@ -124,5 +124,5 @@ test "inlined data" {
 
     const data = i.data();
     try testing.expectEqual(12, data.len);
-    try testing.expect(mem.eql(u8, data, "AAAAAAAAAAAA"));
+    try testing.expectEqualStrings(data, "AAAAAAAAAAAA");
 }

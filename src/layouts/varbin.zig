@@ -103,7 +103,7 @@ test "basic get value" {
     };
     defer arr.deinit(allocator);
 
-    try testing.expect(std.mem.eql(u8, arr.value(0), "AAA"));
+    try testing.expectEqualStrings(arr.value(0), "AAA");
     try testing.expectEqual(@as(usize, 0), arr.value(1).len);
-    try testing.expect(std.mem.eql(u8, arr.value(2), "BBB"));
+    try testing.expectEqualStrings(arr.value(2), "BBB");
 }
