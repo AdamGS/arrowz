@@ -108,9 +108,7 @@ pub fn VarBinView() type {
                 const buff = self.data.items[remote.buf_idx];
 
                 std.debug.assert(buff.items.len >= offset + length);
-
-                const x = buff.items[offset .. offset + length];
-                return x;
+                return buff.items[offset .. offset + length];
             } else {
                 unreachable;
             }
