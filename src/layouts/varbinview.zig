@@ -3,6 +3,8 @@ const testing = std.testing;
 const mem = std.mem;
 
 const BitBuffer = @import("bit.zig").BitBuffer;
+const types = @import("../types.zig");
+const DataType = types.DataType;
 
 const Inline = extern struct {
     const Self = @This();
@@ -54,6 +56,10 @@ const View = extern union {
 };
 
 comptime {
+    if (@sizeOf(Inline) != @sizeOf(Remote)) {
+        @compileError("Remote and Inline must have the same size");
+    }
+
     if (@sizeOf(Inline) != @sizeOf(u128)) {
         @compileError("Inline type must by 16 bytes, got " ++ @sizeOf(Inline));
     }
@@ -65,13 +71,14 @@ comptime {
     if (@sizeOf(View) != @sizeOf(u128)) {
         @compileError("View type must by 16 bytes, got " ++ @sizeOf(Remote));
     }
-
-    if (@sizeOf(Inline) != @sizeOf(Remote)) {
-        @compileError("Remote and Inline must have the same size");
-    }
 }
 
-pub fn VarBinView() type {
+pub fn VarBinView(comptime V: type) type {
+    comptime switch (V) {
+        types.StringType, types.BinaryType => {},
+        else => @compileError("unsupported VarbinView array value type: " ++ @typeName(V)),
+    };
+
     return struct {
         const Self = @This();
         const alignment = std.mem.Alignment.@"64";
@@ -79,6 +86,11 @@ pub fn VarBinView() type {
         views: std.array_list.Aligned(View, alignment),
         data: std.ArrayList(std.array_list.Aligned(u8, alignment)),
         nulls: ?BitBuffer = null,
+
+        pub const empty: Self = .{
+            .views = .empty,
+            .data = .empty,
+        };
 
         pub fn isValid(self: Self, idx: usize) bool {
             if (self.nulls) |nulls| {
@@ -113,6 +125,14 @@ pub fn VarBinView() type {
                 unreachable;
             }
         }
+
+        pub fn data_type(_: Self) DataType {
+            return comptime switch (V) {
+                types.BinaryType => DataType.binary_view,
+                types.StringType => DataType.utf8view,
+                else => @compileError("unsupported VarbinView array value type: " ++ @typeName(V)),
+            };
+        }
     };
 }
 
@@ -125,4 +145,9 @@ test "inlined data" {
     const data = i.data();
     try testing.expectEqual(12, data.len);
     try testing.expectEqualStrings(data, "AAAAAAAAAAAA");
+}
+
+test "data type" {
+    try testing.expectEqual(VarBinView(types.BinaryType).empty.data_type(), DataType.binary_view);
+    try testing.expectEqual(VarBinView(types.StringType).empty.data_type(), DataType.utf8view);
 }

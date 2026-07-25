@@ -42,10 +42,11 @@ pub const BitBuffer = struct {
         return !self.isValid(idx);
     }
 
-    pub fn setWithValue(self: *Self, idx: usize, value: bool) void {
+    fn setWithValue(self: *Self, idx: usize, value: bool) void {
         const byte_idx = idx / 64;
         const bit_idx: u6 = @truncate(idx % 64);
         const mask: u64 = @as(u64, 1) << bit_idx;
+
         if (value) {
             self.bits.items[byte_idx] |= mask;
         } else {

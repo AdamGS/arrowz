@@ -6,11 +6,18 @@ const std = @import("std");
 const testing = std.testing;
 
 const BitBuffer = @import("bit.zig").BitBuffer;
+const types = @import("../types.zig");
+const DataType = types.DataType;
 
-pub fn VariableBinary(comptime T: type) type {
+pub fn VariableBinary(comptime T: type, comptime V: type) type {
     comptime switch (T) {
         i32, i64 => {},
         else => @compileError("unsupported Varbin array offset type: " ++ @typeName(T)),
+    };
+
+    comptime switch (V) {
+        types.StringType, types.BinaryType => {},
+        else => @compileError("unsupported Varbin array value type: " ++ @typeName(V)),
     };
 
     return struct {
@@ -72,16 +79,46 @@ pub fn VariableBinary(comptime T: type) type {
             const end = @abs(self.offsets.items[idx + 1]);
             return self.data.items[start..end];
         }
+
+        pub fn data_type(_: Self) DataType {
+            return switch (V) {
+                types.BinaryType => {
+                    return switch (T) {
+                        i32 => DataType.binary,
+                        i64 => DataType.large_binary,
+                        else => @compileError(
+                            "unsupported VarBin offset element type: " ++ @typeName(T),
+                        ),
+                    };
+                },
+                types.StringType => {
+                    return switch (T) {
+                        i32 => DataType.utf8,
+                        i64 => DataType.large_utf8,
+                        else => @compileError(
+                            "unsupported VarBin offset element type: " ++ @typeName(T),
+                        ),
+                    };
+                },
+                else => @compileError(
+                    "unsupported VarBin array element type: " ++ @typeName(V),
+                ),
+            };
+        }
     };
 }
+
+const ValueTypes = [_]type{ types.BinaryType, types.StringType };
 
 test "init test" {
     const allocator = testing.allocator;
 
-    var arr = try VariableBinary(i32).initCapacity(allocator, 3);
-    defer arr.deinit(allocator);
+    inline for (ValueTypes) |V| {
+        var arr = try VariableBinary(i32, V).initCapacity(allocator, 3);
+        defer arr.deinit(allocator);
 
-    try testing.expect(arr.length == 0);
+        try testing.expect(arr.length == 0);
+    }
 }
 
 test "basic get value" {
@@ -96,7 +133,7 @@ test "basic get value" {
     errdefer allocator.free(offsets);
     @memcpy(offsets, &[_]i32{ 0, 3, 3, 6 });
 
-    var arr = VariableBinary(i32){
+    var arr = VariableBinary(i32, types.StringType){
         .length = 3,
         .data = .fromOwnedSlice(data),
         .offsets = .fromOwnedSlice(offsets),
@@ -106,4 +143,18 @@ test "basic get value" {
     try testing.expectEqualStrings(arr.value(0), "AAA");
     try testing.expectEqual(@as(usize, 0), arr.value(1).len);
     try testing.expectEqualStrings(arr.value(2), "BBB");
+}
+
+test "binary data type" {
+    const bin = VariableBinary(i32, types.BinaryType).empty;
+    try testing.expectEqual(DataType.binary, bin.data_type());
+
+    const large_bin = VariableBinary(i64, types.BinaryType).empty;
+    try testing.expectEqual(DataType.large_binary, large_bin.data_type());
+
+    const str = VariableBinary(i32, types.StringType).empty;
+    try testing.expectEqual(DataType.utf8, str.data_type());
+
+    const large_str = VariableBinary(i64, types.StringType).empty;
+    try testing.expectEqual(DataType.large_utf8, large_str.data_type());
 }

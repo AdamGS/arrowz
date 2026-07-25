@@ -2,6 +2,8 @@
 //!
 //! Spec: https://arrow.apache.org/docs/format/Columnar.html#data-types
 
+const std = @import("std");
+
 pub const DataType = enum {
     null_,
     boolean,
@@ -16,9 +18,24 @@ pub const DataType = enum {
     float16,
     float32,
     float64,
+    binary,
+    large_binary,
+    binary_view,
     utf8,
     large_utf8,
     utf8view,
+};
+
+pub const StringType = struct {
+    fn validate(input: []const u8) bool {
+        return std.unicode.utf8ValidateSlice(input);
+    }
+};
+
+pub const BinaryType = struct {
+    fn validate(_: []const u8) bool {
+        return true;
+    }
 };
 
 // This is a place holder for a type system that is much closer
