@@ -32,9 +32,9 @@
     // Once all dependencies are fetched, `zig build` no longer requires
     // internet connectivity.
     .dependencies = .{
-        .nanoarrow = .{
-            .url = "git+https://github.com/apache/arrow-nanoarrow.git#c0eb931dfea79064713cad4c110ac7b11e170627",
-            .hash = "N-V-__8AAGbjXACjEG1xnJjjMi-sAPf5pWtoCPRIBmaAgutH",
+        .upstream = .{
+            .url = "https://github.com/apache/arrow-nanoarrow/releases/download/apache-arrow-nanoarrow-0.8.0/apache-arrow-nanoarrow-0.8.0.tar.gz",
+            .hash = "N-V-__8AACT9TQAZCuROI0EwzFeSgCjdzFVymTG8JnZudV6_",
         },
     },
     .paths = .{

@@ -1,3 +1,3 @@
-// pub const c = @cImport({
-//     @cInclude("nanoarrow/nanoarrow.h");
-// });
+pub const c = @cImport({
+    @cInclude("nanoarrow_zig.h");
+});

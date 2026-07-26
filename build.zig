@@ -69,30 +69,18 @@ pub fn build(b: *std.Build) void {
 
     docs_step.dependOn(&install_docs.step);
 
+    // Integration tests
+
+    const nanoarrow_mod = setup_nanoarrow(b, target, optimize);
+
     const integration_test_mod = b.createModule(.{
         .root_source_file = b.path("test/tests.zig"),
         .target = target,
         .optimize = optimize,
-        .link_libc = true,
     });
 
     integration_test_mod.addImport("arrowz", arrowz_mod);
-
-    // nanoarrow test dependency
-    const nanoarrow = b.dependency("nanoarrow", .{});
-
-    integration_test_mod.addIncludePath(b.path("test/include"));
-    integration_test_mod.addIncludePath(nanoarrow.path("src"));
-    integration_test_mod.addCSourceFiles(.{
-        .root = nanoarrow.path(""),
-        .files = &.{
-            "src/nanoarrow/common/array.c",
-            "src/nanoarrow/common/schema.c",
-            "src/nanoarrow/common/array_stream.c",
-            "src/nanoarrow/common/utils.c",
-        },
-        .flags = &.{"-std=c99"},
-    });
+    integration_test_mod.addImport("nanoarrow", nanoarrow_mod);
 
     const integration_tests = b.addTest(.{
         .root_module = integration_test_mod,
@@ -119,4 +107,46 @@ pub fn build(b: *std.Build) void {
     //
     // Lastly, the Zig build system is relatively simple and self-contained,
     // and reading its source code will allow you to master it.
+}
+
+// Setup the nanoarrow dependency
+fn setup_nanoarrow(
+    b: *std.Build,
+    target: std.Build.ResolvedTarget,
+    optimize: std.builtin.OptimizeMode,
+) *std.Build.Module {
+    const upstream = b.dependency("upstream", .{});
+
+    const config = b.addConfigHeader(.{
+        .style = .{ .cmake = upstream.path("src/nanoarrow/nanoarrow_config.h.in") },
+        .include_path = "nanoarrow/nanoarrow_config.h",
+    }, .{
+        .NANOARROW_VERSION_MAJOR = 0,
+        .NANOARROW_VERSION_MINOR = 8,
+        .NANOARROW_VERSION_PATCH = 0,
+        .NANOARROW_VERSION = "0.8.0",
+        .NANOARROW_NAMESPACE_DEFINE = "",
+    });
+
+    const mod = b.createModule(.{
+        .root_source_file = b.path("test/nanoarrow.zig"),
+        .target = target,
+        .optimize = optimize,
+        .link_libc = true,
+    });
+
+    mod.addConfigHeader(config);
+    mod.addIncludePath(upstream.path("src"));
+    mod.addIncludePath(b.path("test/include"));
+
+    mod.addCSourceFiles(.{
+        .root = upstream.path("src/nanoarrow/common"),
+        .files = &.{ "array.c", "schema.c", "array_stream.c", "utils.c" },
+    });
+    mod.addCSourceFiles(.{
+        .root = b.path("test/include"),
+        .files = &.{"nanoarrow_zig.c"},
+    });
+
+    return mod;
 }
