@@ -7,27 +7,15 @@ const std = @import("std");
 // build runner to parallelize the build automatically (and the cache system to
 // know when a step doesn't need to be re-run).
 pub fn build(b: *std.Build) void {
-    // Standard target options allow the person running `zig build` to choose
-    // what target to build for. Here we do not override the defaults, which
-    // means any target is allowed, and the default is native. Other options
-    // for restricting supported target set are available.
     const target = b.standardTargetOptions(.{});
-    // Standard optimization options allow the person running `zig build` to select
-    // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall. Here we do not
-    // set a preferred release mode, allowing the user to decide how to optimize.
     const optimize = b.standardOptimizeOption(.{});
-    // It's also possible to define more custom flags to toggle optional features
-    // of this build script using `b.option()`. All defined flags (including
-    // target and optimize options) will be listed when running `zig build --help`
-    // in this directory.
 
-    // This creates a module, which represents a collection of source files alongside
-    // some compilation options, such as optimization mode and linked system libraries.
-    // Zig modules are the preferred way of making Zig code available to consumers.
-    // addModule defines a module that we intend to make available for importing
-    // to our consumers. We must give it a name because a Zig package can expose
-    // multiple modules and consumers will need to be able to specify which
-    // module they want to access.
+    // Shared test runner
+    const test_runner = std.Build.Step.Compile.TestRunner{
+        .path = b.path("tester.zig"),
+        .mode = .simple,
+    };
+
     const arrowz_mod = b.addModule("arrowz", .{
         .root_source_file = b.path("src/root.zig"),
         .target = target,
@@ -42,22 +30,18 @@ pub fn build(b: *std.Build) void {
 
     b.installArtifact(lib);
 
-    // Creates an executable that will run `test` blocks from the provided module.
-    // Here `mod` needs to define a target, which is why earlier we made sure to
-    // set the releative field.
+    // Tests
     const mod_tests = b.addTest(.{
         .root_module = arrowz_mod,
+        .test_runner = test_runner,
     });
 
-    // A run step that will run the test executable.
     const run_mod_tests = b.addRunArtifact(mod_tests);
-
-    // A top level step for running all tests. dependOn can be called multiple
-    // times and since the two run steps do not depend on one another, this will
-    // make the two of them run in parallel.
 
     const test_step = b.step("test", "Run tests");
     test_step.dependOn(&run_mod_tests.step);
+
+    // Docs
 
     const install_docs = b.addInstallDirectory(.{
         .source_dir = lib.getEmittedDocs(),
@@ -84,6 +68,7 @@ pub fn build(b: *std.Build) void {
 
     const integration_tests = b.addTest(.{
         .root_module = integration_test_mod,
+        .test_runner = test_runner,
     });
 
     // A run step that will run the test executable.
