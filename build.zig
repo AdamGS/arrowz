@@ -55,6 +55,7 @@ pub fn build(b: *std.Build) void {
     // A top level step for running all tests. dependOn can be called multiple
     // times and since the two run steps do not depend on one another, this will
     // make the two of them run in parallel.
+
     const test_step = b.step("test", "Run tests");
     test_step.dependOn(&run_mod_tests.step);
 
@@ -67,6 +68,45 @@ pub fn build(b: *std.Build) void {
     const docs_step = b.step("docs", "Install docs into zig-out/docs");
 
     docs_step.dependOn(&install_docs.step);
+
+    const integration_test_mod = b.createModule(.{
+        .root_source_file = b.path("test/tests.zig"),
+        .target = target,
+        .optimize = optimize,
+        .link_libc = true,
+    });
+
+    integration_test_mod.addImport("arrowz", arrowz_mod);
+
+    // nanoarrow test dependency
+    const nanoarrow = b.dependency("nanoarrow", .{});
+
+    integration_test_mod.addIncludePath(b.path("test/include"));
+    integration_test_mod.addIncludePath(nanoarrow.path("src"));
+    integration_test_mod.addCSourceFiles(.{
+        .root = nanoarrow.path(""),
+        .files = &.{
+            "src/nanoarrow/common/array.c",
+            "src/nanoarrow/common/schema.c",
+            "src/nanoarrow/common/array_stream.c",
+            "src/nanoarrow/common/utils.c",
+        },
+        .flags = &.{"-std=c99"},
+    });
+
+    const integration_tests = b.addTest(.{
+        .root_module = integration_test_mod,
+    });
+
+    // A run step that will run the test executable.
+    const integration_mod_tests = b.addRunArtifact(integration_tests);
+
+    // A top level step for running all tests. dependOn can be called multiple
+    // times and since the two run steps do not depend on one another, this will
+    // make the two of them run in parallel.
+
+    const integration_step = b.step("integration", "Run integration tests");
+    integration_step.dependOn(&integration_mod_tests.step);
 
     // Just like flags, top level steps are also listed in the `--help` menu.
     //

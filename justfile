@@ -1,6 +1,11 @@
 test:
     zig build test --summary all
 
+integration:
+    zig build integration --summary all
+
+test-all: test integration
+
 build:
     zig build --summary all
 
